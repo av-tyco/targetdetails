@@ -1,6 +1,6 @@
 <script lang="ts">
-	let selectedTarget = $state(null);
-	const overlays = $state([
+	let selectedTarget = $state({ x: 120, y: 100, width: 50, height: 50 });
+	const targets = $state([
 		{ x: 120, y: 100, width: 50, height: 50 },
 		{ x: 10, y: 350, width: 80, height: 150 }
 	]);
@@ -33,11 +33,22 @@
 
 		function drawOutlines() {
 			if (!ctx) return;
-			ctx.strokeStyle = 'red'; // Outline color
+			
 			ctx.lineWidth = 2; // Outline thickness
 
-			overlays.forEach((overlay) => {
-				ctx.strokeRect(overlay.x, overlay.y, overlay.width, overlay.height);
+			targets.forEach((target) => {
+                if (
+					selectedTarget &&
+					selectedTarget.x === target.x &&
+					selectedTarget.y === target.y &&
+					selectedTarget.width === target.width &&
+					selectedTarget.height === target.height
+				) {
+					ctx.strokeStyle = 'blue'; // Blue outline for selected target
+				} else {
+					ctx.strokeStyle = 'red'; // Red outline for others
+				}
+				ctx.strokeRect(target.x, target.y, target.width, target.height);
 			});
 		}
 
@@ -46,28 +57,30 @@
 			const x = e.clientX - rect.left;
 			const y = e.clientY - rect.top;
 
-			const clickedOverlay = overlays.find(
-				(overlay) =>
-					x >= overlay.x &&
-					x <= overlay.x + overlay.width &&
-					y >= overlay.y &&
-					y <= overlay.y + overlay.height
+			const clickedtarget = targets.find(
+				(target) =>
+					x >= target.x &&
+					x <= target.x + target.width &&
+					y >= target.y &&
+					y <= target.y + target.height
 			);
 
-			if (clickedOverlay) {
-				displayImageData(clickedOverlay);
+			if (clickedtarget) {
+                selectedTarget = clickedtarget;
+                
+				displayImageData(clickedtarget);
 			}
 		});
 
-		function displayImageData(clickedOverlay: { x: any; y: any; width: any; height: any }) {
+		function displayImageData(clickedtarget: { x: any; y: any; width: any; height: any }) {
 			const scaleX = mainImage.width / canvas.width;
 			const scaleY = mainImage.height / canvas.height;
 			const offset = 10;
 
-			const originalX = (clickedOverlay.x - offset) * scaleX;
-			const originalY = (clickedOverlay.y - offset) * scaleY;
-			const originalWidth = (clickedOverlay.width + 2 * offset) * scaleX;
-			const originalHeight = (clickedOverlay.height + 2 * offset) * scaleY;
+			const originalX = (clickedtarget.x - offset) * scaleX;
+			const originalY = (clickedtarget.y - offset) * scaleY;
+			const originalWidth = (clickedtarget.width + 2 * offset) * scaleX;
+			const originalHeight = (clickedtarget.height + 2 * offset) * scaleY;
 
 			targetCanvas.width = canvas.width;
 			targetCanvas.height = canvas.height;
@@ -86,15 +99,15 @@
 					targetCanvas.height // Destination rectangle
 				);
 			}
-			console.log(targetCanvas.width);
+			
 
 			const imageContainer = document.getElementById('target-image');
 			if (!imageContainer) return;
-
-			imageContainer.style.position = 'relative';
 			imageContainer.style.width = `${canvas.width}px`;
 			imageContainer.style.height = `${canvas.height}px`;
 		}
+        
+        
 	});
 </script>
 
@@ -116,10 +129,7 @@
 		display: flex;
 		gap: 1rem;
 	}
-	canvas,
-	#target-image {
-		/* width: 33.33%;  */
-	}
+	
 
 	#target-image {
 		position: relative;
