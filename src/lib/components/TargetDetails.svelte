@@ -67,7 +67,7 @@
 
 			if (clickedtarget) {
                 selectedTarget = clickedtarget;
-                
+                drawImage()
 				displayImageData(clickedtarget);
 			}
 		});
