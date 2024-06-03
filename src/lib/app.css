@@ -1,0 +1,15 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    color: #ffffff;
+    font-family: sans-serif;
+}
+body {
+    background-color: #222222;
+}
+.panel {
+    background-color: #333333;
+    margin: 1rem;
+    padding: .8rem;
+}

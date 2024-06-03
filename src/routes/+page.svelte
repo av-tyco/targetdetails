@@ -1,2 +1,15 @@
-<h1>Welcome to SvelteKit</h1>
-<p>Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation</p>
+<script>
+	import TargetDetails from "$lib/components/TargetDetails.svelte";
+
+</script>
+<main>
+<TargetDetails ></TargetDetails>
+</main>
+
+<style>
+    main {
+        height: 100vh;
+       
+    }
+    
+</style>
