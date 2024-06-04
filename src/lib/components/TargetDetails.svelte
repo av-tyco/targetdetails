@@ -1,156 +1,144 @@
 <script lang="ts">
-
-	import { type Target, Scale } from '../index';
-	let selectedTarget = $state<Target | null>(null);
-	let targets = $state([
-		{ x: 190, y: 120, width: 80, height: 100 },
-		{ x: 10, y: 1100, width: 450, height: 700 }
+	import { type Target } from '../index';
+	import { getScaledDimensions } from '../index';
+	import FocusTarget from './FocusTarget.svelte';
+	let selectedTargetId = $state(-1);
+	let sourceTargets = $state([
+		{ id: 0, x: 190, y: 120, width: 80, height: 100 },
+		{ id: 1, x: 10, y: 1100, width: 450, height: 700 }
 	]);
+
+	const SOURCE_IMAGE_SIZE = 400;
+	const FOCUS_IMAGE_SIZE = 400;
 	let mainImageSrc = $state('/colonne.jpg');
 
+	let sourceCanvas: HTMLCanvasElement;
+
+	$effect(() => {
+		const ctx = sourceCanvas.getContext('2d');
+		if (!ctx) return;
+		let mainImage = new Image();
+		mainImage.src = mainImageSrc;
+		mainImage.onload = () => {
+			drawSourceImage();
+			let scaledTargets = sourceTargets.map((target) => scaleTarget(target, mainImage));
+			drawOutlines(scaledTargets);
+			// window.addEventListener('resize', drawSourceImage);
+			sourceCanvas.addEventListener('click', (e: MouseEvent) =>
+				handleMouseEvent(e, scaledTargets, 'click')
+			);
+			sourceCanvas.addEventListener('mousemove', (e: MouseEvent) =>
+				handleMouseEvent(e, scaledTargets, 'mousemove')
+			);
+		};
+
+		function drawSourceImage() {
+			const ctx = sourceCanvas.getContext('2d');
+			if (!ctx) return;
+
+			let sourceWidth = SOURCE_IMAGE_SIZE;
+			let sourceHeight = SOURCE_IMAGE_SIZE;
+
+			if (mainImage.height > mainImage.width) {
+				sourceWidth = FOCUS_IMAGE_SIZE * (mainImage.width / mainImage.height);
+			} else if (mainImage.width > mainImage.height) {
+				sourceHeight = FOCUS_IMAGE_SIZE * (mainImage.height / mainImage.width);
+			}
+			ctx.clearRect(0, 0, FOCUS_IMAGE_SIZE, FOCUS_IMAGE_SIZE);
+			ctx.drawImage(
+				mainImage,
+				0,
+				0,
+				mainImage.width,
+				mainImage.height,
+				0,
+				0,
+				sourceWidth,
+				sourceHeight
+			);
+		}
+	});
+	function handleMouseEvent(e: MouseEvent, targets: Target[], eventType: 'click' | 'mousemove') {
+		const rect = sourceCanvas.getBoundingClientRect();
+		const x = e.clientX - rect.left;
+		const y = e.clientY - rect.top;
+		const target = targets.find(
+			(target) =>
+				x >= target.x &&
+				x <= target.x + target.width &&
+				y >= target.y &&
+				y <= target.y + target.height
+		);
+		if (target) {
+			sourceCanvas.style.cursor = 'pointer';
+
+			if (eventType === 'click') {
+				selectedTargetId = target.id;
+				drawOutlines(targets);
+			}
+		} else {
+			sourceCanvas.style.cursor = 'default';
+		}
+	}
+	function drawOutlines(targets: Target[]) {
+		const ctx = sourceCanvas.getContext('2d');
+		if (!ctx) return;
+		ctx.lineWidth = 2;
+
+		targets.forEach((target) => {
+			ctx.strokeStyle = target.id === selectedTargetId ? 'blue' : 'red';
+			ctx.strokeRect(target.x, target.y, target.width, target.height);
+		});
+	}
 	function updateImage() {
+		selectedTargetId = -1;
 		if (mainImageSrc === '/colonne.jpg') {
 			mainImageSrc = '/convoy.jpg';
 
-			targets = [
-				{ x: 700, y: 550, width: 80, height: 100 },
-				{ x: 500, y: 500, width: 80, height: 80 }
+			sourceTargets = [
+				{ id: 0, x: 700, y: 550, width: 80, height: 100 },
+				{ id: 1, x: 500, y: 500, width: 80, height: 80 }
 			];
 		} else {
 			mainImageSrc = '/colonne.jpg';
 
-			targets = [
-				{ x: 190, y: 120, width: 80, height: 100 },
-				{ x: 10, y: 1100, width: 450, height: 700 }
+			sourceTargets = [
+				{ id: 0, x: 190, y: 120, width: 80, height: 100 },
+				{ id: 1, x: 10, y: 1100, width: 450, height: 700 }
 			];
 		}
 	}
 
-	let canvas: HTMLCanvasElement;
-	let targetCanvas: HTMLCanvasElement;
-	const FOCUS_IMAGE_SIZE = 400;
+	function scale(value: number, max: number, newMax: number): number {
+		return (value / max) * newMax;
+	}
 
-	$effect(() => {
-		const ctx = canvas.getContext('2d');
-		if (!ctx) return;
-		let mainImage = new Image();
-		mainImage.src = mainImageSrc;
+	function scaleTarget(target: Target, img: HTMLImageElement): Target {
+		let { newWidth, newHeight } = getScaledDimensions(img.width, img.height, SOURCE_IMAGE_SIZE);
 
-		mainImage.onload = () => {
-			drawImage();
-			window.addEventListener('resize', drawImage);
-		};
-		let scaledDownTargets = $derived(targets.map((target) => scaleTarget(target, canvas, mainImage, Scale.Down)));
-
-		function drawImage() {
-			if (!ctx) return;
-			const aspectRatio = mainImage.width / mainImage.height;
-			canvas.width = canvas.clientWidth;
-			canvas.height = canvas.width / aspectRatio;
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			ctx.drawImage(mainImage, 0, 0, canvas.width, canvas.height);
-			drawOutlines();
-		}
-
-		function drawOutlines() {
-			if (!ctx) return;
-			ctx.lineWidth = 2;
-
-			scaledDownTargets.forEach((target) => {
-				if (
-					selectedTarget &&
-					selectedTarget.x === target.x &&
-					selectedTarget.y === target.y &&
-					selectedTarget.width === target.width &&
-					selectedTarget.height === target.height
-				) {
-					ctx.strokeStyle = 'blue';
-				} else {
-					ctx.strokeStyle = 'red';
-				}
-
-				ctx.strokeRect(target.x, target.y, target.width, target.height);
-			});
-		}
-
-		canvas.addEventListener('click', (e: MouseEvent) => {
-			const rect = canvas.getBoundingClientRect();
-			const x = e.clientX - rect.left;
-			const y = e.clientY - rect.top;
-			const clickedtarget = scaledDownTargets.find(
-				(target) =>
-					x >= target.x &&
-					x <= target.x + target.width &&
-					y >= target.y &&
-					y <= target.y + target.height
-			);
-
-			if (clickedtarget) {
-				selectedTarget = clickedtarget;
-				drawOutlines();
-				displayFocusImage(scaleTarget(clickedtarget, canvas, mainImage, Scale.Up));
-			}
-		});
-
-		function displayFocusImage(clickedtarget: Target) {
-			const newCtx = targetCanvas.getContext('2d');
-			if (!newCtx) return;
-
-			let { height, width } = clickedtarget;
-
-			let focusWidth = FOCUS_IMAGE_SIZE;
-			let focusHeight = FOCUS_IMAGE_SIZE;
-
-			if (height > width) {
-				focusWidth = FOCUS_IMAGE_SIZE * (width / height);
-			} else if (width > height) {
-				focusHeight = FOCUS_IMAGE_SIZE * (height / width);
-			}
-			newCtx.clearRect(0, 0, FOCUS_IMAGE_SIZE, FOCUS_IMAGE_SIZE);
-			newCtx.drawImage(
-				mainImage,
-				clickedtarget.x,
-				clickedtarget.y,
-				clickedtarget.width,
-				clickedtarget.height,
-				0,
-				0,
-				focusWidth,
-				focusHeight
-			);
-		}
-	});
-	function scaleTarget(
-		target: Target,
-		canvas: HTMLCanvasElement,
-		img: HTMLImageElement,
-		scale: Scale = Scale.Down
-	): Target {
-		let scaleX =  canvas.width / img.width;
-		let scaleY = canvas.height / img.height;
-		if (scale === Scale.Up) {
-			scaleX = img.width / canvas.width;
-			scaleY = img.height / canvas.height;
-		}
-
-		let x = target.x * scaleX;
-		let y = target.y * scaleY;
-		let width = target.width * scaleX;
-		let height = target.height * scaleY;
-		return { x, y, width, height };
+		let x = scale(target.x, img.width, newWidth);
+		let y = scale(target.y, img.height, newHeight);
+		let width = scale(target.width, img.width, newWidth);
+		let height = scale(target.height, img.height, newHeight);
+		return { id: target.id, x, y, width, height };
 	}
 </script>
 
 <button onclick={updateImage}>Switch</button>
 <div class="target-details panel">
-	<canvas bind:this={canvas}></canvas>
-
 	<canvas
-		id="focus-target"
-		width={FOCUS_IMAGE_SIZE}
-		height={FOCUS_IMAGE_SIZE}
-		bind:this={targetCanvas}
+		id="source-image"
+		width={SOURCE_IMAGE_SIZE}
+		height={SOURCE_IMAGE_SIZE}
+		bind:this={sourceCanvas}
 	></canvas>
+	{#if selectedTargetId !== -1}
+		<FocusTarget
+			size={FOCUS_IMAGE_SIZE}
+			imgSrc={mainImageSrc}
+			target={sourceTargets[selectedTargetId]}
+		></FocusTarget>
+	{/if}
 </div>
 
 <style>
